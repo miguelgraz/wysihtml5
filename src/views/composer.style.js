@@ -36,7 +36,7 @@
         "-webkit-border-bottom-right-radius", "-moz-border-radius-bottomright", "border-bottom-right-radius",
         "-webkit-border-bottom-left-radius", "-moz-border-radius-bottomleft", "border-bottom-left-radius",
         "-webkit-border-top-left-radius", "-moz-border-radius-topleft", "border-top-left-radius",
-        "width", "height"
+        "width","height"
       ],
       ADDITIONAL_CSS_RULES = [
         "html                 { height: 100%; }",
@@ -161,7 +161,8 @@
     // Make sure that we don't change the display style of the iframe when copying styles oblur/onfocus
     // this is needed for when the change_view event is fired where the iframe is hidden and then
     // the blur event fires and re-displays it
-    var boxFormattingStyles = wysihtml5.lang.array(BOX_FORMATTING).without(["display"]);
+    // height should be set only at the begining, after that the resizing function will deal.
+    var boxFormattingStyles = wysihtml5.lang.array(BOX_FORMATTING).without(["display", "height"]);
     
     // --------- restore focus ---------
     if (originalActiveElement) {

@@ -41,6 +41,8 @@
     toolbar:              undef,
     // Whether urls, entered by the user should automatically become clickable-links
     autoLink:             true,
+    // Resizes editor height when content is bigger than container
+    autoResize:           true,
     // Object which includes parser rules to apply when html gets inserted via copy & paste
     // See parser_rules/*.js for examples
     parserRules:          { tags: { br: {}, span: {}, div: {}, p: {} }, classes: {} },
@@ -86,6 +88,10 @@
       
       if (typeof(this.config.parser) === "function") {
         this._initParser();
+      }
+
+      if (this.config.autoResize === true){
+        this._initAutoResize();
       }
       
       this.on("beforeload", function() {
@@ -160,7 +166,71 @@
       }
       return returnValue;
     },
-    
+
+    /** Auto-resize the iframe by resizing it's parent wrapper.
+     *  ref:  r043v code at https://github.com/xing/wysihtml5/issues/18#issuecomment-11041675
+     *  @param editor is wysihtml5 editor instance.
+     */
+    autoResize: function( editor ){
+      // Get elements
+      var iframe     = editor.composer.iframe;
+      var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
+      var iframeBody = iframeHtml.getElementsByTagName('body')[0];
+      var editorWrapper = iframe.parentNode;
+      
+      // Reset styles
+      iframeHtml.style.width    = "100%";
+      iframeHtml.style.height   = "100%";
+      iframeHtml.style.margin   = 0;
+      iframeHtml.style.padding  = 0;
+      iframeHtml.style.overflow = "hidden";
+      iframeBody.style.height   = "auto";
+      iframeBody.style.width    = "100%";
+      iframeBody.style.margin   = 0;
+      iframeBody.style.padding  = 0;
+      iframe.style.border = 0;
+
+      function resize(){
+        editorWrapper.style.height = iframeBody.style.height;
+
+        // For Firefox, scrollHeight doesn't include offsetTop for the first child node.
+        // Where the firstchild has offsetTop > 0 we need to add it. ex. <body><h3>...
+        var bodyChildren        = iframeBody.childNodes;
+        if (bodyChildren[0] && bodyChildren[0].style !== undefined){
+          var childrenTotalHeight = bodyChildren[0].style.length;
+          var childrenOffset      = bodyChildren[0].nodeType == 1;
+        }
+        var offsetTop           = ( childrenTotalHeight && childrenOffset ) ? bodyChildren[0].offsetTop : 0;
+
+        // Force editor wrapper not to overflow
+        editorWrapper.style.height = '100%';
+        
+        // scrollHeight now gives the correct document height, so use it.
+        var rightHeight = (iframeBody.scrollHeight > 0) ? iframeBody.scrollHeight : editor.composer.element.scrollHeight;
+        rightHeight = rightHeight == 0 ? editor.composer.element.scrollHeight : (rightHeight + offsetTop);
+        iframe.style.height = rightHeight + 'px';
+
+        // debug
+        console.log("iframe:" + iframe.style.height);
+        window.bc = bodyChildren;
+        window.ibod = iframeBody;
+        window.ew = editorWrapper;
+
+      }
+
+      // Setup resizing listener
+      editor.composer.element.addEventListener("keyup", resize, false);
+      editor.on("aftercommand:composer", resize);
+      resize();
+    },
+
+    /**
+     * Observes for longer content
+     */
+    _initAutoResize: function(){
+      this.autoResize( this );
+    },
+
     /**
      * Prepare html parser logic
      *  - Observes for paste and drop

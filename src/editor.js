@@ -179,42 +179,49 @@
       var editorWrapper = iframe.parentNode;
       
       // Reset styles
-      iframeHtml.style.width    = "100%";
       iframeHtml.style.height   = "100%";
+      iframeHtml.style.width    = "100%";
       iframeHtml.style.margin   = 0;
       iframeHtml.style.padding  = 0;
       iframeHtml.style.overflow = "hidden";
-      iframeBody.style.height   = "auto";
+
+      iframeBody.style.height   = "auto"; // https://github.com/xing/wysihtml5/issues/18#issuecomment-11202670
+      iframeBody.style.lineHeight = '20px';
       iframeBody.style.width    = "100%";
       iframeBody.style.margin   = 0;
       iframeBody.style.padding  = 0;
+
       iframe.style.border = 0;
+      iframe.style.height = '100%';
+      
+      editorWrapper.style.height = '100%'; // Force editor wrapper not to overflow
+
 
       function resize(){
-        editorWrapper.style.height = iframeBody.style.height;
+        var bodyChildren        = iframeBody.childNodes;
 
+        // 1 - Get Current height
+        
         // For Firefox, scrollHeight doesn't include offsetTop for the first child node.
         // Where the firstchild has offsetTop > 0 we need to add it. ex. <body><h3>...
-        var bodyChildren        = iframeBody.childNodes;
         if (bodyChildren[0] && bodyChildren[0].style !== undefined){
           var childrenTotalHeight = bodyChildren[0].style.length;
           var childrenOffset      = bodyChildren[0].nodeType == 1;
         }
-        var offsetTop           = ( childrenTotalHeight && childrenOffset ) ? bodyChildren[0].offsetTop : 0;
+        var offsetTop     = ( childrenTotalHeight && childrenOffset ) ? bodyChildren[0].offsetTop : 0;
 
-        // Force editor wrapper not to overflow
-        editorWrapper.style.height = '100%';
+        // jQuery aproach to find height, use whichever is greater.
+        var objectHeight  = Math.max(iframeBody.scrollHeight, iframeBody.offsetHeight, iframeBody.clientHeight);
         
-        // scrollHeight now gives the correct document height, so use it.
-        var rightHeight = (iframeBody.scrollHeight > 0) ? iframeBody.scrollHeight : editor.composer.element.scrollHeight;
-        rightHeight = rightHeight == 0 ? editor.composer.element.scrollHeight : (rightHeight + offsetTop);
-        iframe.style.height = rightHeight + 'px';
+        var rightHeight   = objectHeight + offsetTop;
 
-        // debug
-        console.log("iframe:" + iframe.style.height);
-        window.bc = bodyChildren;
-        window.ibod = iframeBody;
-        window.ew = editorWrapper;
+        // 2 - Set Current height
+        
+        // FIXME: fetching height on Firefox still does not work.
+        var isChrome = !!(window.chrome && chrome.webstore && chrome.webstore.install);
+        if (isChrome) {
+          iframe.style.height = rightHeight + 'px';
+        }
 
       }
 

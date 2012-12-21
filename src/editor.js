@@ -218,10 +218,7 @@
         // 2 - Set Current height
         
         // FIXME: fetching height on Firefox still does not work.
-        var isChrome = !!(window.chrome && chrome.webstore && chrome.webstore.install);
-        if (isChrome) {
-          iframe.style.height = rightHeight + 'px';
-        }
+        iframe.style.height = rightHeight + 'px';
 
       }
 
@@ -233,9 +230,11 @@
 
     /**
      * Observes for longer content
+     * Only for chrome
      */
     _initAutoResize: function(){
-      this.autoResize( this );
+      var isChrome = !!(window.chrome && chrome.webstore && chrome.webstore.install);
+      if (isChrome) this.autoResize( this );
     },
 
     /**

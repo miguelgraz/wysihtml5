@@ -172,60 +172,61 @@
      *  @param editor is wysihtml5 editor instance.
      */
     autoResize: function( editor ){
-      // Get elements
-      var iframe     = editor.composer.iframe;
-      var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
-      var iframeBody = iframeHtml.getElementsByTagName('body')[0];
-      var editorWrapper = iframe.parentNode;
-      
-      // Reset styles
-      iframeHtml.style.height   = "100%";
-      iframeHtml.style.width    = "100%";
-      iframeHtml.style.margin   = 0;
-      iframeHtml.style.padding  = 0;
-      iframeHtml.style.overflow = "hidden";
 
-      iframeBody.style.height   = "auto"; // https://github.com/xing/wysihtml5/issues/18#issuecomment-11202670
-      iframeBody.style.lineHeight = '20px';
-      iframeBody.style.width    = "100%";
-      iframeBody.style.margin   = 0;
-      iframeBody.style.padding  = 0;
-
-      iframe.style.border = 0;
-      iframe.style.height = '100%';
-      
-      editorWrapper.style.height = '100%'; // Force editor wrapper not to overflow
-
-
-      function resize(){
-        var bodyChildren        = iframeBody.childNodes;
-
-        // 1 - Get Current height
+      function resize(){        
+        // Get elements
+        var iframe     = editor.composer.iframe;
+        var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
+        var iframeBody = iframeHtml.getElementsByTagName('body')[0];
+        var editorWrapper = iframe.parentNode;
         
-        // For Firefox, scrollHeight doesn't include offsetTop for the first child node.
-        // Where the firstchild has offsetTop > 0 we need to add it. ex. <body><h3>...
-        if (bodyChildren[0] && bodyChildren[0].style !== undefined){
-          var childrenTotalHeight = bodyChildren[0].style.length;
-          var childrenOffset      = bodyChildren[0].nodeType == 1;
-        }
-        var offsetTop     = ( childrenTotalHeight && childrenOffset ) ? bodyChildren[0].offsetTop : 0;
+        // 0 - Reset styles
+        iframeHtml.style.height   = "100%";
+        iframeHtml.style.width    = "100%";
+        iframeHtml.style.margin   = 0;
+        iframeHtml.style.padding  = 0;
+        iframeHtml.style.overflow = "hidden";
 
-        // jQuery aproach to find height, use whichever is greater.
-        var objectHeight  = Math.max(iframeBody.scrollHeight, iframeBody.offsetHeight, iframeBody.clientHeight);
+        iframeBody.style.height   = "auto"; // https://github.com/xing/wysihtml5/issues/18#issuecomment-11202670
+        iframeBody.style.lineHeight = '20px';
+        iframeBody.style.width    = "100%";
+        iframeBody.style.margin   = 0;
+        iframeBody.style.padding  = 0;
+
+        iframe.style.border = 0;
+        iframe.style.height = '100%';
         
-        var rightHeight   = objectHeight + offsetTop;
+        editorWrapper.style.height = '100%'; // Force editor wrapper not to overflow
+
+        // 1 - Get Current height for all childNodes:
+        var rightHeight = wysihtml5.quirks.countChildNodes(iframeBody);
+        // console.log("there are nodes: " + iframeBody.childNodes.length + " - height: " + rightHeight);
 
         // 2 - Set Current height
-        
-        // FIXME: fetching height on Firefox still does not work.
         iframe.style.height = rightHeight + 'px';
+      }
 
+      function resizeOnDelete(event){
+        var key = event.keyCode || event.charCode;
+        if( key == 8 || key == 46 ){ // Delete or Backspace
+          resize();
+        }
       }
 
       // Setup resizing listener
       editor.composer.element.addEventListener("keyup", resize, false);
       editor.on("aftercommand:composer", resize);
       resize();
+
+      // FIXME: can't make this listener work, yet if we associate later, it will. 
+      // This will make autoscaledown to happen on a delete/backspace.
+      // editor.composer.element.addEventListener("keydown", resizeOnDelete, false); 
+      
+      // For example:
+      //  window.editi = editor;
+      // Then on your console:
+      //  editi.composer.element.addEventListener("keydown", resizeOnDelete, false); 
+      // Then it works..
     },
 
     /**
@@ -233,8 +234,9 @@
      * Only for chrome
      */
     _initAutoResize: function(){
-      var isChrome = !!(window.chrome && chrome.webstore && chrome.webstore.install);
-      if (isChrome) this.autoResize( this );
+      // var isChrome = !!(window.chrome && chrome.webstore && chrome.webstore.install);
+      // if (isChrome) 
+      this.autoResize( this );
     },
 
     /**

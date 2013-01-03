@@ -152,26 +152,18 @@ if (wysihtml5.browser.supported()) {
     }).on(this.textareaElement);
   
     var editor = new wysihtml5.Editor(this.textareaElement, {autoResize: true});
-    var isChrome = !!(window.chrome && chrome.webstore && chrome.webstore.install);
-    if (isChrome)
+
     editor.on("load", function() {
       // Make textarea visible for a short amount of time, in order to calculate dimensions properly
       that.textareaElement.style.display = "block";
+
       var iframe = that.getIframeElement();
-      var iframeBody = iframe.contentWindow.document.body;
-      
-      // Get height + offset
-      var bodyChildren        = iframeBody.childNodes;
-      if (bodyChildren[0] && bodyChildren[0].style !== undefined){
-        var childrenTotalHeight = bodyChildren[0].style.length;
-        var childrenOffset      = bodyChildren[0].nodeType == 1;
-      }
-      var offsetTop     = ( childrenTotalHeight && childrenOffset ) ? bodyChildren[0].offsetTop : 0;
+      var rightHeight = wysihtml5.quirks.countChildNodes(iframe.contentWindow.document.getElementsByTagName('body')[0]);
 
+      var iframeBody = iframe.contentWindow.document.getElementsByTagName('body')[0];
       var iframeBodyHeight = Math.max(iframeBody.scrollHeight, iframeBody.offsetHeight, iframeBody.clientHeight);
-      var iframeHeight = Math.max(iframe.scrollHeight, iframe.offsetHeight, iframe.clientHeight);
 
-      equal( iframeHeight, iframeBodyHeight,
+      equal( iframeBodyHeight, rightHeight,
         "Editor has the same dimensions as the body element (autoresizing)"
       );
 

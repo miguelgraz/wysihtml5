@@ -221,20 +221,20 @@
 
       // Setup resizing listener
       editor.on("aftercommand:composer", resize);
-      resize();
+      editor.on("change_view", resize);
+      editor.on("focus:composer", resize);
+      editor.on("blur:composer", resize);
+      editor.on("load", resize);
 
       // FIXME: can't make this listener work, yet if we associate later, it will. 
       // This will make autoscaledown to happen on a delete/backspace.
-      // editor.composer.element.addEventListener("keydown", resizeOnDelete, false); 
-      // editor.on("keyup:composer", resize, false);
-      // editor.on("keydown:composer", resizeOnDelete, false);
-      // editor.on("keypress:composer", resizeOnDelete, false);
-      
-      // For example:
-      //  window.editi = editor;
-      // Then on your console:
-      //  editi.composer.element.addEventListener("keydown", resizeOnDelete, false); 
-      // Then it works..
+      editor.composer.element.addEventListener("keydown", resizeOnDelete); 
+      editor.composer.element.addEventListener("keypress", resizeOnDelete); 
+      editor.composer.element.addEventListener("keyup", resizeOnDelete);
+
+      // Set the first size
+      resize();
+
     },
 
     /**

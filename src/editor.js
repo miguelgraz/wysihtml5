@@ -172,31 +172,37 @@
      *  @param editor is wysihtml5 editor instance.
      */
     autoResize: function( editor ){
+      // Get elements
+      var iframe     = editor.composer.iframe;
+      var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
+      var iframeBody = iframeHtml.getElementsByTagName('body')[0];
+      var editorWrapper = iframe.parentNode;
+      
+      // 0 - Reset styles
+      iframeHtml.style.height   = "100%";
+      iframeHtml.style.width    = "100%";
+      iframeHtml.style.margin   = 0;
+      iframeHtml.style.padding  = 0;
+      iframeHtml.style.overflow = "hidden";
 
-      function resize(){        
+      iframeBody.style.height   = "auto"; // https://github.com/xing/wysihtml5/issues/18#issuecomment-11202670
+      iframeBody.style.lineHeight = '20px';
+      iframeBody.style.width    = "100%";
+      iframeBody.style.margin   = 0;
+      iframeBody.style.padding  = 0;
+
+      iframe.style.border = 0;
+      iframe.style.height = '100%';
+      
+      editorWrapper.style.height = '100%'; // Force editor wrapper not to overflow
+
+
+      function resize(){
         // Get elements
         var iframe     = editor.composer.iframe;
         var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
         var iframeBody = iframeHtml.getElementsByTagName('body')[0];
         var editorWrapper = iframe.parentNode;
-        
-        // 0 - Reset styles
-        iframeHtml.style.height   = "100%";
-        iframeHtml.style.width    = "100%";
-        iframeHtml.style.margin   = 0;
-        iframeHtml.style.padding  = 0;
-        iframeHtml.style.overflow = "hidden";
-
-        iframeBody.style.height   = "auto"; // https://github.com/xing/wysihtml5/issues/18#issuecomment-11202670
-        iframeBody.style.lineHeight = '20px';
-        iframeBody.style.width    = "100%";
-        iframeBody.style.margin   = 0;
-        iframeBody.style.padding  = 0;
-
-        iframe.style.border = 0;
-        iframe.style.height = '100%';
-        
-        editorWrapper.style.height = '100%'; // Force editor wrapper not to overflow
 
         // 1 - Get Current height for all childNodes:
         var rightHeight = wysihtml5.quirks.countChildNodes(iframeBody);
@@ -214,13 +220,15 @@
       }
 
       // Setup resizing listener
-      editor.composer.element.addEventListener("keyup", resize, false);
       editor.on("aftercommand:composer", resize);
       resize();
 
       // FIXME: can't make this listener work, yet if we associate later, it will. 
       // This will make autoscaledown to happen on a delete/backspace.
       // editor.composer.element.addEventListener("keydown", resizeOnDelete, false); 
+      // editor.on("keyup:composer", resize, false);
+      // editor.on("keydown:composer", resizeOnDelete, false);
+      // editor.on("keypress:composer", resizeOnDelete, false);
       
       // For example:
       //  window.editi = editor;

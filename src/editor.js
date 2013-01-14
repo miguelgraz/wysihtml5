@@ -197,7 +197,7 @@
       editorWrapper.style.height = '100%'; // Force editor wrapper not to overflow
 
 
-      function resize(){
+      var resize = function(){
         // Get elements
         var iframe     = editor.composer.iframe;
         var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
@@ -212,27 +212,33 @@
         iframe.style.height = rightHeight + 'px';
       }
 
-      function resizeOnDelete(event){
+      var resizeOnDelete = function(event){
         var key = event.keyCode || event.charCode;
         if( key == 8 || key == 46 ){ // Delete or Backspace
           resize();
         }
       }
 
-      // Setup resizing listener
-      editor.on("aftercommand:composer", resize);
-      editor.on("change_view", resize);
-      editor.on("focus:composer", resize);
-      editor.on("blur:composer", resize);
-      editor.on("load", resize);
+      // Editor specific listener
+      editor.on("aftercommand:composer", resize); // Set bold, italic, etc
+      editor.on("change_view", resize); // Change wysi/source view
 
-      // FIXME: can't make this listener work, yet if we associate later, it will. 
-      // This will make autoscaledown to happen on a delete/backspace.
-      editor.composer.element.addEventListener("keydown", resizeOnDelete); 
-      editor.composer.element.addEventListener("keypress", resizeOnDelete); 
-      editor.composer.element.addEventListener("keyup", resizeOnDelete);
+      // Typing listeners
+      editor.on("newword:composer", resize); // Only way to observe on firefox
+      editor.on("undo:composer", resize);
+      editor.on("paste", resize);
+      iframeBody.addEventListener('keyup', resize, false);
+      iframeBody.addEventListener("keydown", resize, false); 
+      iframeBody.addEventListener("keypress", resize, false); 
+      
+      // Focus/Blur listeners
+      editor.on("focus", resize);
+      editor.on("blur", resize);
+      iframeBody.addEventListener('blur', resize, false);
+      iframeBody.addEventListener('focus', resize, false);
 
       // Set the first size
+      editor.on("load", resize);
       resize();
 
     },

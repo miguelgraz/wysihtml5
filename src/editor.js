@@ -172,41 +172,67 @@
      *  @param editor is wysihtml5 editor instance.
      */
     autoResize: function( editor ){
-      // Get elements
-      var iframe     = editor.composer.iframe;
-      var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
-      var iframeBody = iframeHtml.getElementsByTagName('body')[0];
-      var editorWrapper = iframe.parentNode;
-      
-      // 0 - Reset styles
-      iframeHtml.style.height   = "100%";
-      iframeHtml.style.width    = "100%";
-      iframeHtml.style.margin   = 0;
-      iframeHtml.style.padding  = 0;
-      iframeHtml.style.overflow = "hidden";
 
-      iframeBody.style.height   = "auto"; // https://github.com/xing/wysihtml5/issues/18#issuecomment-11202670
-      iframeBody.style.lineHeight = '20px';
-      iframeBody.style.width    = "100%";
-      iframeBody.style.margin   = 0;
-      iframeBody.style.padding  = 0;
+      var setupAutoResize = function(){
+        // Get elements
+        var iframe     = editor.composer.iframe;
+        var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
+        var editorWrapper = iframe.parentNode;
+        var iframeBody = iframeHtml.lastChild;
+        
+        // 0 - Reset styles
+        iframeHtml.style.height   = "100%";
+        iframeHtml.style.width    = "100%";
+        iframeHtml.style.margin   = 0;
+        iframeHtml.style.padding  = 0;
+        iframeHtml.style.overflow = "hidden";
 
-      iframe.style.border = 0;
-      iframe.style.height = '100%';
-      
-      editorWrapper.style.height = '100%'; // Force editor wrapper not to overflow
+        iframeBody.style.height   = "auto"; // https://github.com/xing/wysihtml5/issues/18#issuecomment-11202670
+        iframeBody.style.lineHeight = '20px';
+        iframeBody.style.width    = "100%";
+        iframeBody.style.margin   = 0;
+        iframeBody.style.padding  = 0;
 
+        iframe.style.border = 0;
+        iframe.style.height = '100%';
+        
+        editorWrapper.style.height = '100%'; // Force editor wrapper not to overflow
+
+        // Editor specific listener
+        editor.on("aftercommand:composer", resize); // Set bold, italic, etc
+        editor.on("change_view", resize); // Change wysi/source view
+
+        // Typing listeners
+        editor.on("newword:composer", resize); // Only way to observe on firefox
+        editor.on("undo:composer", resize);
+        editor.on("paste", resize);
+        
+        // Focus/Blur listeners
+        editor.on("focus", resize);
+        editor.on("blur", resize);
+
+        iframeBody.addEventListener('keyup', resize, false);
+        iframeBody.addEventListener("keydown", resize, false); 
+        iframeBody.addEventListener("keypress", resize, false); 
+        iframeBody.addEventListener('blur', resize, false);
+        iframeBody.addEventListener('focus', resize, false);
+
+        // Set the first size
+        editor.on("load", resize);
+        resize();
+      }
+
+      // IE 9 won't setup the editor before 
+      setTimeout(setupAutoResize, 200);
 
       var resize = function(){
         // Get elements
         var iframe     = editor.composer.iframe;
         var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
-        var iframeBody = iframeHtml.getElementsByTagName('body')[0];
-        var editorWrapper = iframe.parentNode;
+        var iframeBody = iframeHtml.lastChild;
 
         // 1 - Get Current height for all childNodes:
         var rightHeight = wysihtml5.quirks.countChildNodes(iframeBody);
-        // console.log("there are nodes: " + iframeBody.childNodes.length + " - height: " + rightHeight);
 
         // 2 - Set Current height
         iframe.style.height = rightHeight + 'px';
@@ -218,28 +244,6 @@
           resize();
         }
       }
-
-      // Editor specific listener
-      editor.on("aftercommand:composer", resize); // Set bold, italic, etc
-      editor.on("change_view", resize); // Change wysi/source view
-
-      // Typing listeners
-      editor.on("newword:composer", resize); // Only way to observe on firefox
-      editor.on("undo:composer", resize);
-      editor.on("paste", resize);
-      iframeBody.addEventListener('keyup', resize, false);
-      iframeBody.addEventListener("keydown", resize, false); 
-      iframeBody.addEventListener("keypress", resize, false); 
-      
-      // Focus/Blur listeners
-      editor.on("focus", resize);
-      editor.on("blur", resize);
-      iframeBody.addEventListener('blur', resize, false);
-      iframeBody.addEventListener('focus', resize, false);
-
-      // Set the first size
-      editor.on("load", resize);
-      resize();
 
     },
 

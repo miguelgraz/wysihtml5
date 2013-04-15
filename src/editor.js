@@ -175,23 +175,18 @@
         var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
         var editorWrapper = iframe.parentNode;
         var iframeBody = iframeHtml.lastChild;
-        
+
         // 0 - Reset styles
         iframeHtml.style.height   = "100%";
         iframeHtml.style.width    = "100%";
-        iframeHtml.style.margin   = 0;
-        iframeHtml.style.padding  = 0;
         iframeHtml.style.overflow = "hidden";
 
         iframeBody.style.height   = "auto"; // https://github.com/xing/wysihtml5/issues/18#issuecomment-11202670
         iframeBody.style.lineHeight = '20px';
         iframeBody.style.width    = "100%";
-        iframeBody.style.margin   = 0;
-        iframeBody.style.padding  = 0;
 
-        iframe.style.border = 0;
         iframe.style.height = '100%';
-        
+
         editorWrapper.style.height = '100%'; // Force editor wrapper not to overflow
 
         // Editor specific listener
@@ -202,14 +197,14 @@
         editor.on("newword:composer", resize); // Only way to observe on firefox
         editor.on("undo:composer", resize);
         editor.on("paste", resize);
-        
+
         // Focus/Blur listeners
         editor.on("focus", resize);
         editor.on("blur", resize);
 
         iframeBody.addEventListener('keyup', resize, false);
-        iframeBody.addEventListener("keydown", resize, false); 
-        iframeBody.addEventListener("keypress", resize, false); 
+        iframeBody.addEventListener("keydown", resize, false);
+        iframeBody.addEventListener("keypress", resize, false);
         iframeBody.addEventListener('blur', resize, false);
         iframeBody.addEventListener('focus', resize, false);
 
@@ -218,7 +213,7 @@
         resize();
       }
 
-      // IE 9 won't setup the editor before 
+      // IE 9 won't setup the editor before
       setTimeout(setupAutoResize, 200);
 
       var resize = function(){

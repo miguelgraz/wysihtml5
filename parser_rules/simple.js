@@ -25,7 +25,7 @@ var wysihtml5ParserRules = {
         rel:    "nofollow"
       },
       check_attributes: {
-        href:   "url" // important to avoid XSS
+        href:   "href" // important to avoid XSS
       }
     }
   }

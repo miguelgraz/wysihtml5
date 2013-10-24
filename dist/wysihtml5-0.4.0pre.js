@@ -3725,6 +3725,18 @@ wysihtml5.browser = (function() {
      */
     hasIframeFocusIssue: function() {
       return isIE;
+    },
+    
+    /**
+     * Chrome + Safari create invalid nested markup after paste
+     * 
+     *  <p>
+     *    foo
+     *    <p>bar</p> <!-- BOO! -->
+     *  </p>
+     */
+    createsNestedInvalidMarkupAfterPaste: function() {
+      return isWebKit;
     }
   };
 })();wysihtml5.lang.array = function(arr) {
@@ -4792,9 +4804,9 @@ wysihtml5.dom.parse = (function() {
     }
     
     while (element.firstChild) {
-      firstChild  = element.firstChild;
-      element.removeChild(firstChild);
+      firstChild = element.firstChild;
       newNode = _convert(firstChild, cleanUp);
+      element.removeChild(firstChild);
       if (newNode) {
         fragment.appendChild(newNode);
       }
@@ -4815,6 +4827,7 @@ wysihtml5.dom.parse = (function() {
         oldChildsLength = oldChilds.length,
         method          = NODE_TYPE_MAPPING[oldNodeType],
         i               = 0,
+        fragment,
         newNode,
         newChild;
     
@@ -4833,10 +4846,13 @@ wysihtml5.dom.parse = (function() {
     
     // Cleanup senseless <span> elements
     if (cleanUp &&
-        newNode.childNodes.length <= 1 &&
         newNode.nodeName.toLowerCase() === DEFAULT_NODE_NAME &&
-        !newNode.attributes.length) {
-      return newNode.firstChild;
+        (!newNode.childNodes.length || !newNode.attributes.length)) {
+      fragment = newNode.ownerDocument.createDocumentFragment();
+      while (newNode.firstChild) {
+        fragment.appendChild(newNode.firstChild);
+      }
+      return fragment;
     }
     
     return newNode;
@@ -5054,8 +5070,17 @@ wysihtml5.dom.parse = (function() {
     }
   }
   
+  var INVISIBLE_SPACE_REG_EXP = /\uFEFF/g;
   function _handleText(oldNode) {
-    return oldNode.ownerDocument.createTextNode(oldNode.data);
+    var nextSibling = oldNode.nextSibling;
+    if (nextSibling && nextSibling.nodeType === wysihtml5.TEXT_NODE) {
+      // Concatenate text nodes
+      nextSibling.data = oldNode.data + nextSibling.data;
+    } else {
+      // \uFEFF = wysihtml5.INVISIBLE_SPACE (used as a hack in certain rich text editing situations)
+      var data = oldNode.data.replace(INVISIBLE_SPACE_REG_EXP, "");
+      return oldNode.ownerDocument.createTextNode(data);
+    } 
   }
   
   
@@ -5746,6 +5771,43 @@ wysihtml5.quirks.cleanPastedHTML = (function() {
   }
   
   return cleanPastedHTML;
+})();/**
+* Calculates height of all text inside the editor.
+*
+* @author Gabriel Engel
+*
+* Receives a body or any base element, puts the content inside a temporary div, 
+* get's the div height.
+*
+*/
+
+wysihtml5.quirks.countChildNodes = (function() { 
+  
+  function getHeight(node){
+    // jQuery aproach to find height, use whichever is greater.
+    return Math.max(node.offsetHeight, node.clientHeight);
+  }
+
+  function getWholeHeight(data, firstNode){
+    // Text element, wrap up in a paragraph to get height.
+    var content = '<div>'+ data +' &nbsp;</div>';
+    var node = firstNode.insertAdjacentHTML('afterbegin', content);
+    var response = getHeight(firstNode.firstElementChild);
+    
+    // Remove element not to affect editing.
+    firstNode.removeChild(firstNode.firstElementChild);
+    return response;
+  }
+
+  function countChildNodes(node){
+    var firstNode = node;
+    var ret = 20; // Initial size
+    ret = ret + getWholeHeight(firstNode.innerHTML, firstNode);
+    return ret;
+  }
+
+  return countChildNodes;
+
 })();/**
  * IE and Opera leave an empty paragraph in the contentEditable element after clearing it
  *
@@ -7896,11 +7958,6 @@ wysihtml5.views.View = Base.extend(
         value = this.parent.parse(value);
       }
 
-      // Replace all "zero width no breaking space" chars
-      // which are used as hacks to enable some functionalities
-      // Also remove all CARET hacks that somehow got left
-      value = wysihtml5.lang.string(value).replace(wysihtml5.INVISIBLE_SPACE).by("");
-
       return value;
     },
 
@@ -8229,6 +8286,16 @@ wysihtml5.views.View = Base.extend(
         });
       }
       
+      // Under certain circumstances Chrome + Safari create nested <p> or <hX> tags after paste
+      // Inserting an invisible white space in front of it fixes the issue
+      if (browser.createsNestedInvalidMarkupAfterPaste()) {
+        dom.observe(this.element, "paste", function(event) {
+          var invisibleSpace = that.doc.createTextNode(wysihtml5.INVISIBLE_SPACE);
+          that.selection.insertNode(invisibleSpace);
+        });
+      }
+
+      
       dom.observe(this.doc, "keydown", function(event) {
         var keyCode = event.keyCode;
         
@@ -8311,7 +8378,7 @@ wysihtml5.views.View = Base.extend(
         "-webkit-border-bottom-right-radius", "-moz-border-radius-bottomright", "border-bottom-right-radius",
         "-webkit-border-bottom-left-radius", "-moz-border-radius-bottomleft", "border-bottom-left-radius",
         "-webkit-border-top-left-radius", "-moz-border-radius-topleft", "border-top-left-radius",
-        "width", "height"
+        "width","height"
       ],
       ADDITIONAL_CSS_RULES = [
         "html                 { height: 100%; }",
@@ -8436,7 +8503,8 @@ wysihtml5.views.View = Base.extend(
     // Make sure that we don't change the display style of the iframe when copying styles oblur/onfocus
     // this is needed for when the change_view event is fired where the iframe is hidden and then
     // the blur event fires and re-displays it
-    var boxFormattingStyles = wysihtml5.lang.array(BOX_FORMATTING).without(["display"]);
+    // height should be set only at the begining, after that the resizing function will deal.
+    var boxFormattingStyles = wysihtml5.lang.array(BOX_FORMATTING).without(["display", "height"]);
     
     // --------- restore focus ---------
     if (originalActiveElement) {
@@ -9443,6 +9511,8 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     toolbar:              undef,
     // Whether urls, entered by the user should automatically become clickable-links
     autoLink:             true,
+    // Resizes editor height when content is bigger than container
+    autoResize:           true,
     // Object which includes parser rules to apply when html gets inserted via copy & paste
     // See parser_rules/*.js for examples
     parserRules:          { tags: { br: {}, span: {}, div: {}, p: {} }, classes: {} },
@@ -9459,7 +9529,9 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     // Placeholder text to use, defaults to the placeholder attribute on the textarea element
     placeholderText:      undef,
     // Whether the rich text editor should be rendered on touch devices (wysihtml5 >= 0.3.0 comes with basic support for iOS 5)
-    supportTouchDevices:  true
+    supportTouchDevices:  true,
+    // Whether senseless <span> elements (empty or without attributes) should be removed/replaced with their content
+    cleanUp:              true
   };
   
   wysihtml5.Editor = wysihtml5.lang.Dispatcher.extend(
@@ -9487,6 +9559,10 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
       if (typeof(this.config.parser) === "function") {
         this._initParser();
       }
+
+      if (this.config.autoResize === true){
+        this._initAutoResize();
+      }
       
       this.on("beforeload", function() {
         this.synchronizer = new wysihtml5.views.Synchronizer(this, this.textarea, this.composer);
@@ -9494,10 +9570,6 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
           this.toolbar = new wysihtml5.toolbar.Toolbar(this, this.config.toolbar);
         }
       });
-      
-      try {
-        console.log("Heya! This page is using wysihtml5 for rich text editing. Check out https://github.com/xing/wysihtml5");
-      } catch(e) {}
     },
     
     isCompatible: function() {
@@ -9554,13 +9626,98 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     },
     
     parse: function(htmlOrElement) {
-      var returnValue = this.config.parser(htmlOrElement, this.config.parserRules, this.composer.sandbox.getDocument(), true);
+      var returnValue = this.config.parser(htmlOrElement, this.config.parserRules, this.composer.sandbox.getDocument(), this.config.cleanUp);
       if (typeof(htmlOrElement) === "object") {
         wysihtml5.quirks.redraw(htmlOrElement);
       }
       return returnValue;
     },
-    
+
+    /** Auto-resize the iframe by resizing it's parent wrapper.
+     *  ref:  r043v code at https://github.com/xing/wysihtml5/issues/18#issuecomment-11041675
+     *  @param editor is wysihtml5 editor instance.
+     */
+    autoResize: function( editor ){
+
+      var setupAutoResize = function(){
+        // Get elements
+        var iframe     = editor.composer.iframe;
+        var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
+        var editorWrapper = iframe.parentNode;
+        var iframeBody = iframeHtml.lastChild;
+
+        // 0 - Reset styles
+        iframeHtml.style.height   = "100%";
+        iframeHtml.style.width    = "100%";
+        iframeHtml.style.overflow = "hidden";
+
+        iframeBody.style.height   = "auto"; // https://github.com/xing/wysihtml5/issues/18#issuecomment-11202670
+        iframeBody.style.lineHeight = '20px';
+        iframeBody.style.width    = "100%";
+
+        iframe.style.height = '100%';
+
+        editorWrapper.style.height = '100%'; // Force editor wrapper not to overflow
+
+        // Editor specific listener
+        editor.on("aftercommand:composer", resize); // Set bold, italic, etc
+        editor.on("change_view", resize); // Change wysi/source view
+
+        // Typing listeners
+        editor.on("newword:composer", resize); // Only way to observe on firefox
+        editor.on("undo:composer", resize);
+        editor.on("paste", resize);
+
+        // Focus/Blur listeners
+        editor.on("focus", resize);
+        editor.on("blur", resize);
+
+        iframeBody.addEventListener('keyup', resize, false);
+        iframeBody.addEventListener("keydown", resize, false);
+        iframeBody.addEventListener("keypress", resize, false);
+        iframeBody.addEventListener('blur', resize, false);
+        iframeBody.addEventListener('focus', resize, false);
+
+        // Set the first size
+        editor.on("load", resize);
+        resize();
+      }
+
+      // IE 9 won't setup the editor before
+      setTimeout(setupAutoResize, 200);
+
+      var resize = function(){
+        // Get elements
+        var iframe     = editor.composer.iframe;
+        var iframeHtml = iframe.contentWindow.document.getElementsByTagName('html')[0];
+        var iframeBody = iframeHtml.lastChild;
+
+        // 1 - Get Current height for all childNodes:
+        var rightHeight = wysihtml5.quirks.countChildNodes(iframeBody);
+
+        // 2 - Set Current height
+        iframe.style.height = rightHeight + 'px';
+      }
+
+      var resizeOnDelete = function(event){
+        var key = event.keyCode || event.charCode;
+        if( key == 8 || key == 46 ){ // Delete or Backspace
+          resize();
+        }
+      }
+
+    },
+
+    /**
+     * Observes for longer content
+     * Only for chrome
+     */
+    _initAutoResize: function(){
+      // var isChrome = !!(window.chrome && chrome.webstore && chrome.webstore.install);
+      // if (isChrome) 
+      this.autoResize( this );
+    },
+
     /**
      * Prepare html parser logic
      *  - Observes for paste and drop

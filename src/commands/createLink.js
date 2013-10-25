@@ -89,8 +89,10 @@
         });
       } else {
         // Create links
-        value = typeof(value) === "object" ? value : { href: value };
-        _format(composer, value);
+        var REG_EXP = /^(\/|https?:\/\/|mailto:)/i;
+        value = typeof(value) === "object" ? value.href : value;
+        value = ((!value.match(REG_EXP)) ? "http://" + value : value);
+        _format(composer, {href: value});
       }
     },
 
